@@ -3,7 +3,7 @@ const TOKEN = "trans_oran_2026"
 
 // 🔥 FIREBASE
 const firebaseConfig = {
-  apiKey: "AIzaSyBCd1wAUZo2HVUT-1-YuXgMukHlQP8I0Xo",
+  apiKey: "AIzaSy...",
   authDomain: "transalumnos-7841c.firebaseapp.com",
   databaseURL: "https://transalumnos-7841c-default-rtdb.firebaseio.com",
   projectId: "transalumnos-7841c"
@@ -14,26 +14,12 @@ const db = firebase.database();
 
 // 📍 VARIABLES
 let alumnos = []
-let alumnoPadre = null
-
 let watchID = null
 let ultimaUbicacion = null
-
-let latSeleccion = null
-let lonSeleccion = null
-
-let mapSeleccion = null
-let markerSeleccion = null
 
 let mapChofer = null
 let markerChofer = null
 let circleChofer = null
-
-let mapPadres = null
-let markerPadres = null
-let circlePadres = null
-let markerAlumnoPadre = null
-let rutaPadres = null
 
 let capasAlumnos = []
 let alumnosDibujados = false
@@ -42,6 +28,9 @@ let alumnosDibujados = false
 let indiceRuta = 0
 let rutaLinea = null
 let ultimaRecalculo = 0
+
+// 🔔 CONTROL AVISOS
+let avisados = {} // evita repetir aviso
 
 // 🚐 ICONO
 const iconoColectivo = L.icon({
@@ -53,152 +42,8 @@ const iconoColectivo = L.icon({
 // 🔥 CARGAR ALUMNOS
 db.ref("alumnos").on("value", (snap)=>{
   alumnos = snap.val() || []
-
-  mostrarAlumnos()
-  mostrarRuta()
-
   alumnosDibujados = false
 })
-
-// 🔄 PANTALLAS
-function mostrar(p){
-
-  ["pantallaModo","pantallaAlumnos","pantallaRuta","pantallaGPS","pantallaPadres","pantallaMapaSeleccion","pantallaLoginPadres"]
-  .forEach(id=>{
-    let el = document.getElementById(id)
-    if(el) el.style.display="none"
-  })
-
-  document.getElementById(p).style.display="block"
-
-  setTimeout(()=>{
-    if(p==="pantallaGPS") iniciarGPS()
-    if(p==="pantallaPadres") iniciarPadres()
-    if(p==="pantallaRuta") mostrarRuta()
-    if(p==="pantallaMapaSeleccion") iniciarMapaSeleccion()
-  },200)
-}
-
-// 🚐
-function modoChofer(){
-  mostrar("pantallaAlumnos")
-}
-
-// 🔐 LOGIN PADRES
-function ingresarPadre(){
-  let dni = document.getElementById("dniPadre").value
-
-  if(!dni){
-    alert("Ingresá DNI")
-    return
-  }
-
-  alumnoPadre = alumnos.find(a => a.dni == dni)
-
-  if(!alumnoPadre){
-    alert("DNI no encontrado")
-    return
-  }
-
-  mostrar("pantallaPadres")
-}
-
-// 👦 AGREGAR
-function agregarAlumno(){
-
-  let nombre = document.getElementById("nombre").value
-  let direccion = document.getElementById("direccion").value
-  let telefono = document.getElementById("telefono").value
-  let dni = document.getElementById("dni").value
-
-  if(!nombre || !direccion || !telefono || !dni || latSeleccion===null){
-    alert("Completá todo")
-    return
-  }
-
-  alumnos.push({
-    nombre,
-    direccion,
-    telefono,
-    dni,
-    lat: latSeleccion,
-    lon: lonSeleccion
-  })
-
-  db.ref("alumnos").set(alumnos)
-
-  latSeleccion = null
-  lonSeleccion = null
-
-  document.getElementById("nombre").value=""
-  document.getElementById("direccion").value=""
-  document.getElementById("telefono").value=""
-  document.getElementById("dni").value=""
-
-  alert("Alumno guardado ✅")
-}
-
-// 📋 LISTA
-function mostrarAlumnos(){
-  let lista = document.getElementById("lista")
-  if(!lista) return
-
-  lista.innerHTML=""
-
-  alumnos.forEach((a,i)=>{
-    let li = document.createElement("li")
-
-    li.innerHTML = `
-      <b>${a.nombre}</b><br>
-      📍 ${a.direccion}<br>
-      📞 ${a.telefono}<br>
-      🆔 ${a.dni}
-      <button onclick="eliminarAlumno(${i})">🗑</button>
-    `
-
-    lista.appendChild(li)
-  })
-}
-
-// 🗑
-function eliminarAlumno(i){
-  alumnos.splice(i,1)
-  db.ref("alumnos").set(alumnos)
-}
-
-// 🛣 RUTA
-function mostrarRuta(){
-  let lista = document.getElementById("listaRuta")
-  if(!lista) return
-
-  lista.innerHTML=""
-
-  alumnos.forEach((a,i)=>{
-    let li = document.createElement("li")
-
-    li.innerHTML = `
-      ${i+1}. ${a.nombre}
-      <button onclick="subir(${i})">⬆️</button>
-      <button onclick="bajar(${i})">⬇️</button>
-    `
-
-    lista.appendChild(li)
-  })
-}
-
-// 🔼
-function subir(i){
-  if(i===0) return
-  [alumnos[i], alumnos[i-1]] = [alumnos[i-1], alumnos[i]]
-  db.ref("alumnos").set(alumnos)
-}
-
-// 🔽
-function bajar(i){
-  if(i===alumnos.length-1) return
-  [alumnos[i], alumnos[i+1]] = [alumnos[i+1], alumnos[i]]
-  db.ref("alumnos").set(alumnos)
-}
 
 // 🔴 DIBUJAR ALUMNOS
 function dibujarAlumnosEnMapa(){
@@ -278,27 +123,39 @@ function iniciarGPS(){
       mapChofer.setView([lat, lon], 17)
     }
 
-    // 🔥 GPS DINÁMICO
-    if(window.rutaActiva && ultimaUbicacion){
+    // 🔥 GPS INTELIGENTE
+    if(window.rutaActiva){
 
       let destino = alumnos[indiceRuta]
 
       if(destino){
 
-        let dist = distanciaMetros(ultimaUbicacion, {
-          lat: destino.lat,
-          lon: destino.lon
-        })
+        let dist = distanciaMetros(ultimaUbicacion, destino)
 
-        if(dist < 50){
+        // 🔔 AVISO A PADRES (500m)
+        if(dist < 500 && !avisados[destino.dni]){
+          avisados[destino.dni] = true
+
+          db.ref("avisos/" + destino.dni).set({
+            mensaje: "🚐 El transporte está llegando",
+            tiempo: Date.now()
+          })
+        }
+
+        // 🚐 LLEGÓ AL PUNTO
+        if(dist < 40){
           indiceRuta++
-          calcularRutaActual()
+
+          if(rutaLinea){
+            mapChofer.removeLayer(rutaLinea)
+          }
+
           return
         }
 
+        // 🔄 RECALCULAR RUTA (cada 5s)
         let ahora = Date.now()
-
-        if(ahora - ultimaRecalculo > 4000){
+        if(ahora - ultimaRecalculo > 5000){
           ultimaRecalculo = ahora
           calcularRutaActual()
         }
@@ -306,7 +163,7 @@ function iniciarGPS(){
     }
 
   },
-  (err)=>console.log("GPS error:", err),
+  (err)=>console.log(err),
   {
     enableHighAccuracy:true,
     timeout:15000,
@@ -338,12 +195,13 @@ function comenzarRuta(){
   }
 
   indiceRuta = 0
+  avisados = {} // reset avisos
   window.rutaActiva = true
 
   calcularRutaActual()
 }
 
-// 🧠 CALCULAR RUTA
+// 🧠 CALCULAR RUTA DINÁMICA
 async function calcularRutaActual(){
 
   if(!ultimaUbicacion) return
@@ -379,48 +237,4 @@ async function calcularRutaActual(){
   }
 
   rutaLinea = L.polyline(latlngs, {weight:5}).addTo(mapChofer)
-}
-
-// 📍 MAPA SELECCIÓN
-function abrirMapaSeleccion(){
-  mostrar("pantallaMapaSeleccion")
-}
-
-function iniciarMapaSeleccion(){
-
-  if(!mapSeleccion){
-    mapSeleccion = L.map('mapaSeleccion').setView([-23.13, -64.32], 15)
-
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png')
-    .addTo(mapSeleccion)
-
-    mapSeleccion.on("click", (e)=>{
-
-      latSeleccion = e.latlng.lat
-      lonSeleccion = e.latlng.lng
-
-      if(markerSeleccion){
-        markerSeleccion.setLatLng(e.latlng)
-      }else{
-        markerSeleccion = L.marker(e.latlng).addTo(mapSeleccion)
-      }
-    })
-  }
-
-  setTimeout(()=>mapSeleccion.invalidateSize(),300)
-}
-
-function guardarUbicacion(){
-  if(latSeleccion===null){
-    alert("Tocá el mapa")
-    return
-  }
-
-  alert("Ubicación guardada 📍")
-  mostrar("pantallaAlumnos")
-}
-
-// 🔙
-function volverModo(){
-  location.reload()
 }

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Ubicación en vivo</title>
+</head>
+
+<body>
+
+<h2>🚐 Transporte en tiempo real</h2>
+
+<iframe id="mapa" width="100%" height="400"></iframe>
+
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+
+<script>
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBCd1wAUZo2HVUT-1-YuXgMukHlQP8I0Xo",
+  authDomain: "transalumnos-7841c.firebaseapp.com",
+  databaseURL: "https://transalumnos-7841c-default-rtdb.firebaseio.com",
+  projectId: "transalumnos-7841c",
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+db.ref("ubicacion").on("value", (data)=>{
+
+let u = data.val()
+
+if(u){
+
+let url = "https://maps.google.com/maps?q=" +
+u.lat + "," + u.lon +
+"&z=18&output=embed"
+
+document.getElementById("mapa").src = url
+
+}
+
+})
+
+</script>
+
+</body>
+</html>

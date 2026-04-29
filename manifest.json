@@ -1,0 +1,21 @@
+{
+  "name": "TransAlumnos",
+  "short_name": "Trans",
+  "start_url": "/NOMBRE-DE-TU-REPO/",
+  "scope": "/NOMBRE-DE-TU-REPO/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2196F3",
+  "icons": [
+    {
+      "src": "icono.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icono.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

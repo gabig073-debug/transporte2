@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+
+<title>TransAlumnos</title>
+
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2196F3">
+
+<link rel="stylesheet" href="style.css">
+
+<!-- FIREBASE -->
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+
+<!-- LEAFLET -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+<style>
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+.app {
+  height: 100vh;
+}
+
+#mapa, #mapaPadres, #mapaSeleccion {
+  height: 100vh;
+  width: 100%;
+}
+
+.panel-chofer {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 1000;
+}
+
+.panel-chofer button {
+  margin: 5px;
+  padding: 10px;
+}
+</style>
+
+</head>
+
+<body>
+
+<div class="app">
+
+<h1 style="text-align:center;">🚐 TransAlumnos</h1>
+
+<!-- 🔥 MODO -->
+<div id="pantallaModo">
+  <h2>Elegir modo</h2>
+
+  <button onclick="modoChofer()">🚐 Chofer</button>
+  <button onclick="mostrar('pantallaLoginPadres')">👨‍👩‍👧 Padres</button>
+</div>
+
+<!-- 🔐 LOGIN PADRES -->
+<div id="pantallaLoginPadres" style="display:none">
+
+  <h2>Ingreso Padres</h2>
+
+  <input id="dniPadre" placeholder="Ingresar DNI">
+
+  <br><br>
+
+  <button onclick="ingresarPadre()">Ingresar</button>
+
+  <button onclick="volverModo()">🔙 Volver</button>
+
+</div>
+
+<!-- 👦 ALUMNOS -->
+<div id="pantallaAlumnos" style="display:none">
+
+  <h2>Alumnos</h2>
+
+  <input id="nombre" placeholder="Nombre">
+  <input id="direccion" placeholder="Dirección">
+  <input id="telefono" placeholder="Teléfono">
+  <input id="dni" placeholder="DNI del padre">
+
+  <br><br>
+
+  <button onclick="abrirMapaSeleccion()">📍 Elegir ubicación en mapa</button>
+
+  <button onclick="agregarAlumno()">Guardar</button>
+
+  <p id="ubicacionElegida" style="font-size:12px;"></p>
+
+  <ul id="lista"></ul>
+
+  <button onclick="mostrar('pantallaRuta')">🛣 Ir a Ruta</button>
+  <button onclick="mostrar('pantallaGPS')">📡 Ir al GPS</button>
+
+</div>
+
+<!-- 🗺 SELECCIONAR UBICACION -->
+<div id="pantallaMapaSeleccion" style="display:none">
+
+  <div class="panel-chofer">
+    <button onclick="guardarUbicacion()">✅ Confirmar</button>
+    <button onclick="mostrar('pantallaAlumnos')">❌ Cancelar</button>
+  </div>
+
+  <div id="mapaSeleccion"></div>
+
+</div>
+
+<!-- 🛣 RUTA -->
+<div id="pantallaRuta" style="display:none">
+
+  <h2>Ruta</h2>
+
+  <ul id="listaRuta"></ul>
+
+  <button onclick="comenzarRuta()">🚐 Comenzar Ruta</button>
+
+  <button onclick="mostrar('pantallaAlumnos')">👦 Alumnos</button>
+  <button onclick="mostrar('pantallaGPS')">📡 GPS</button>
+
+</div>
+
+<!-- 📡 GPS CHOFER -->
+<div id="pantallaGPS" style="display:none">
+
+  <div class="panel-chofer">
+    <button onclick="mostrar('pantallaAlumnos')">👦</button>
+    <button onclick="mostrar('pantallaRuta')">🛣</button>
+    <button onclick="volverModo()">🔙</button>
+  </div>
+
+  <div id="mapa"></div>
+
+</div>
+
+<!-- 👨‍👩‍👧 PADRES -->
+<div id="pantallaPadres" style="display:none">
+  <div id="mapaPadres"></div>
+</div>
+
+</div>
+
+<script src="app.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,106 @@
+body{
+  margin:0;
+  font-family: Arial;
+  background:#ccc;
+}
+
+/* 📱 CONTENEDOR APP */
+.app{
+  width:100vw;
+  height:100vh;
+  background:white;
+  overflow:hidden;
+  position:fixed;
+  top:0;
+  left:0;
+}
+
+/* HEADER */
+h1{
+background:#2196F3;
+color:white;
+padding:12px;
+margin:0;
+text-align:center;
+font-size:18px;
+}
+
+/* CONTENIDO */
+.container{
+  padding:15px;
+  padding-bottom:80px;
+  overflow-y:auto;
+  height:calc(100vh - 60px);
+}
+
+/* TEXTOS */
+h2{
+font-size:16px;
+margin-bottom:10px;
+}
+
+h3{
+font-size:15px;
+margin:5px 0;
+}
+
+p{
+font-size:13px;
+margin:5px 0;
+}
+
+/* INPUTS */
+input{
+width:100%;
+padding:10px;
+margin:5px 0;
+border-radius:6px;
+border:1px solid #ccc;
+font-size:13px;
+}
+
+/* BOTONES */
+button{
+padding:8px;
+margin:5px 2px;
+border:none;
+border-radius:6px;
+background:#2196F3;
+color:white;
+font-size:13px;
+cursor:pointer;
+}
+
+/* TARJETAS */
+.card{
+background:white;
+padding:12px;
+margin:10px 0;
+border-radius:10px;
+box-shadow:0 2px 5px rgba(0,0,0,0.2);
+}
+
+/* MENÚ INFERIOR */
+.menu{
+  position:fixed;
+  bottom:0;
+  left:0;
+  width:100%;
+}
+
+.menu button{
+background:none;
+color:black;
+font-size:18px;
+}
+
+/* ESTADOS */
+.pagado{
+color:green;
+font-weight:bold;
+}
+
+.pendiente{
+color:red;
+font-weight:bold;
+}

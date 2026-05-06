@@ -19,10 +19,19 @@ let alumnoPadre = null
 let watchID = null
 let ultimaUbicacion = null
 
+// 📍 selección mapa
+let latSeleccion = null
+let lonSeleccion = null
+
+let mapSeleccion = null
+let markerSeleccion = null
+
+// 🚐 mapa chofer
 let mapChofer = null
 let markerChofer = null
 let circleChofer = null
 
+// 👨‍👩‍👧 mapa padres
 let mapPadres = null
 let markerPadres = null
 let circlePadres = null
@@ -68,9 +77,23 @@ function mostrar(p){
   if(pantalla) pantalla.style.display="block"
 
   setTimeout(()=>{
-    if(p==="pantallaGPS") iniciarGPS()
-    if(p==="pantallaRuta") mostrarRuta()
-    if(p==="pantallaPadres") iniciarPadres()
+
+    if(p==="pantallaGPS"){
+      iniciarGPS()
+    }
+
+    if(p==="pantallaRuta"){
+      mostrarRuta()
+    }
+
+    if(p==="pantallaPadres"){
+      iniciarPadres()
+    }
+
+    if(p==="pantallaMapaSeleccion"){
+      iniciarMapaSeleccion()
+    }
+
   },200)
 }
 
@@ -81,6 +104,7 @@ function modoChofer(){
 
 // 🔐 LOGIN PADRES
 function ingresarPadre(){
+
   let dni = document.getElementById("dniPadre").value
 
   if(!dni){
@@ -105,22 +129,127 @@ function volverModo(){
 
 // 🔥 CARGAR ALUMNOS
 db.ref("alumnos").on("value", (snap)=>{
+
   alumnos = snap.val() || []
+
+  mostrarAlumnos()
+  mostrarRuta()
+
   alumnosDibujados = false
 })
 
+// 👦 AGREGAR ALUMNO
+function agregarAlumno(){
+
+  let nombre = document.getElementById("nombre").value
+  let direccion = document.getElementById("direccion").value
+  let telefono = document.getElementById("telefono").value
+  let dni = document.getElementById("dni").value
+
+  if(!nombre || !direccion || !telefono || !dni){
+    alert("Completá todos los campos")
+    return
+  }
+
+  if(latSeleccion === null || lonSeleccion === null){
+    alert("Elegí ubicación en el mapa")
+    return
+  }
+
+  alumnos.push({
+    nombre,
+    direccion,
+    telefono,
+    dni,
+    lat: latSeleccion,
+    lon: lonSeleccion
+  })
+
+  db.ref("alumnos").set(alumnos)
+
+  document.getElementById("nombre").value = ""
+  document.getElementById("direccion").value = ""
+  document.getElementById("telefono").value = ""
+  document.getElementById("dni").value = ""
+
+  latSeleccion = null
+  lonSeleccion = null
+
+  alert("Alumno guardado ✅")
+}
+
+// 📋 LISTA ALUMNOS
+function mostrarAlumnos(){
+
+  let lista = document.getElementById("lista")
+  if(!lista) return
+
+  lista.innerHTML = ""
+
+  alumnos.forEach((a,i)=>{
+
+    let li = document.createElement("li")
+
+    li.innerHTML = `
+      <b>${a.nombre}</b><br>
+      📍 ${a.direccion}<br>
+      📞 ${a.telefono}<br>
+      🆔 ${a.dni}
+      <button onclick="eliminarAlumno(${i})">🗑</button>
+    `
+
+    lista.appendChild(li)
+  })
+}
+
+// 🗑 ELIMINAR
+function eliminarAlumno(i){
+
+  alumnos.splice(i,1)
+
+  db.ref("alumnos").set(alumnos)
+}
+
 // 📋 LISTA RUTA
 function mostrarRuta(){
+
   let lista = document.getElementById("listaRuta")
   if(!lista) return
 
   lista.innerHTML=""
 
   alumnos.forEach((a,i)=>{
+
     let li = document.createElement("li")
-    li.innerHTML = `${i+1}. ${a.nombre}`
+
+    li.innerHTML = `
+      ${i+1}. ${a.nombre}
+      <button onclick="subir(${i})">⬆️</button>
+      <button onclick="bajar(${i})">⬇️</button>
+    `
+
     lista.appendChild(li)
   })
+}
+
+// ⬆️
+function subir(i){
+
+  if(i===0) return
+
+  ;[alumnos[i], alumnos[i-1]] = [alumnos[i-1], alumnos[i]]
+
+  db.ref("alumnos").set(alumnos)
+}
+
+// ⬇️
+function bajar(i){
+
+  if(i===alumnos.length-1) return
+
+  ;[alumnos[i], alumnos[i+1]] = [alumnos[i+1], alumnos[i]]
+
+  db.ref("alumnos").set(alumnos)
 }
 
 // 🔴 DIBUJAR ALUMNOS
@@ -128,10 +257,14 @@ function dibujarAlumnosEnMapa(){
 
   if(!mapChofer) return
 
-  capasAlumnos.forEach(c => mapChofer.removeLayer(c))
+  capasAlumnos.forEach(c => {
+    mapChofer.removeLayer(c)
+  })
+
   capasAlumnos = []
 
   alumnos.forEach(a=>{
+
     if(a.lat && a.lon){
 
       let circulo = L.circle([a.lat, a.lon], {
@@ -155,12 +288,15 @@ function iniciarGPS(){
   }
 
   if(!mapChofer){
+
     mapChofer = L.map('mapa').setView([0,0], 16)
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png')
     .addTo(mapChofer)
 
-    setTimeout(()=>mapChofer.invalidateSize(),300)
+    setTimeout(()=>{
+      mapChofer.invalidateSize()
+    },300)
   }
 
   if(!alumnosDibujados){
@@ -185,14 +321,24 @@ function iniciarGPS(){
     })
 
     if(!markerChofer){
-      markerChofer = L.marker([lat, lon], {icon: iconoColectivo}).addTo(mapChofer)
+
+      markerChofer = L.marker([lat, lon], {
+        icon: iconoColectivo
+      }).addTo(mapChofer)
+
     }else{
+
       markerChofer.setLatLng([lat, lon])
     }
 
     if(!circleChofer){
-      circleChofer = L.circle([lat, lon], {radius: accuracy}).addTo(mapChofer)
+
+      circleChofer = L.circle([lat, lon], {
+        radius: accuracy
+      }).addTo(mapChofer)
+
     }else{
+
       circleChofer.setLatLng([lat, lon])
       circleChofer.setRadius(accuracy)
     }
@@ -201,11 +347,19 @@ function iniciarGPS(){
       mapChofer.setView([lat, lon], 17)
     }
 
+    // 🚐 RUTA DINÁMICA
     if(window.rutaActiva){
 
       if(ultimaPosicionRuta){
-        let mov = distanciaMetros(ultimaUbicacion, ultimaPosicionRuta)
-        if(mov < 10) return
+
+        let mov = distanciaMetros(
+          ultimaUbicacion,
+          ultimaPosicionRuta
+        )
+
+        if(mov < 10){
+          return
+        }
       }
 
       ultimaPosicionRuta = {...ultimaUbicacion}
@@ -214,10 +368,14 @@ function iniciarGPS(){
 
       if(destino){
 
-        let dist = distanciaMetros(ultimaUbicacion, destino)
+        let dist = distanciaMetros(
+          ultimaUbicacion,
+          destino
+        )
 
-        // 🔔 aviso padres
+        // 🔔 AVISO
         if(dist < 500 && !avisados[destino.dni]){
+
           avisados[destino.dni] = true
 
           db.ref("avisos/" + destino.dni).set({
@@ -226,27 +384,34 @@ function iniciarGPS(){
           })
         }
 
-        // 🚐 llegó
+        // 🚐 LLEGÓ
         if(dist < 40){
+
           indiceRuta++
 
           if(rutaLinea){
             mapChofer.removeLayer(rutaLinea)
           }
 
+          calcularRutaActual()
           return
         }
 
         let ahora = Date.now()
+
         if(ahora - ultimaRecalculo > 5000){
+
           ultimaRecalculo = ahora
+
           calcularRutaActual()
         }
       }
     }
 
   },
-  (err)=>console.log("GPS error:", err),
+  (err)=>{
+    console.log("GPS error:", err)
+  },
   {
     enableHighAccuracy:true,
     timeout:15000,
@@ -256,7 +421,9 @@ function iniciarGPS(){
 
 // 📏 DISTANCIA
 function distanciaMetros(a, b){
+
   let R = 6371000
+
   let dLat = (b.lat - a.lat) * Math.PI/180
   let dLon = (b.lon - a.lon) * Math.PI/180
 
@@ -264,6 +431,7 @@ function distanciaMetros(a, b){
   let lat2 = b.lat * Math.PI/180
 
   let x = dLon * Math.cos((lat1+lat2)/2)
+
   let d = Math.sqrt(dLat*dLat + x*x) * R
 
   return d
@@ -279,6 +447,7 @@ function comenzarRuta(){
 
   indiceRuta = 0
   avisados = {}
+
   window.rutaActiva = true
 
   calcularRutaActual()
@@ -290,7 +459,9 @@ async function calcularRutaActual(){
   if(!ultimaUbicacion) return
 
   if(indiceRuta >= alumnos.length){
+
     alert("Ruta terminada ✅")
+
     window.rutaActiva = false
 
     if(rutaLinea){
@@ -308,26 +479,33 @@ async function calcularRutaActual(){
   ]
 
   try{
+
     let url = `https://router.project-osrm.org/route/v1/driving/${coords.join(";")}?overview=full&geometries=geojson`
 
     let res = await fetch(url)
     let data = await res.json()
 
+    if(!data.routes) return
+
     let rutaCoords = data.routes[0].geometry.coordinates
+
     let latlngs = rutaCoords.map(c => [c[1], c[0]])
 
     if(rutaLinea){
       mapChofer.removeLayer(rutaLinea)
     }
 
-    rutaLinea = L.polyline(latlngs, {weight:5}).addTo(mapChofer)
+    rutaLinea = L.polyline(latlngs, {
+      weight:5
+    }).addTo(mapChofer)
 
   }catch(e){
+
     console.log("Error ruta:", e)
   }
 }
 
-// 👨‍👩‍👧 MODO PADRES COMPLETO
+// 👨‍👩‍👧 PADRES
 function iniciarPadres(){
 
   if(!alumnoPadre){
@@ -336,7 +514,9 @@ function iniciarPadres(){
   }
 
   if(mapPadres){
+
     mapPadres.remove()
+
     mapPadres = null
     markerPadres = null
     circlePadres = null
@@ -349,7 +529,9 @@ function iniciarPadres(){
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png')
   .addTo(mapPadres)
 
-  setTimeout(()=>mapPadres.invalidateSize(),300)
+  setTimeout(()=>{
+    mapPadres.invalidateSize()
+  },300)
 
   db.ref("ubicacion").on("value",(snap)=>{
 
@@ -360,33 +542,55 @@ function iniciarPadres(){
     let lon = data.lon
     let accuracy = data.accuracy || 20
 
+    // 🚐 colectivo
     if(!markerPadres){
-      markerPadres = L.marker([lat, lon], {icon: iconoColectivo}).addTo(mapPadres)
+
+      markerPadres = L.marker([lat, lon], {
+        icon: iconoColectivo
+      }).addTo(mapPadres)
+
     }else{
+
       markerPadres.setLatLng([lat, lon])
     }
 
+    // 🔵 precisión
     if(!circlePadres){
-      circlePadres = L.circle([lat, lon], {radius: accuracy}).addTo(mapPadres)
+
+      circlePadres = L.circle([lat, lon], {
+        radius: accuracy
+      }).addTo(mapPadres)
+
     }else{
+
       circlePadres.setLatLng([lat, lon])
       circlePadres.setRadius(accuracy)
     }
 
+    // 🔴 alumno
     if(alumnoPadre.lat && alumnoPadre.lon){
 
       if(!markerAlumnoPadre){
-        markerAlumnoPadre = L.circle([alumnoPadre.lat, alumnoPadre.lon], {
-          radius: 30,
-          color: "red",
-          fillColor: "red",
-          fillOpacity: 0.6
-        }).addTo(mapPadres)
+
+        markerAlumnoPadre = L.circle(
+          [alumnoPadre.lat, alumnoPadre.lon],
+          {
+            radius: 30,
+            color: "red",
+            fillColor: "red",
+            fillOpacity: 0.6
+          }
+        ).addTo(mapPadres)
       }
 
+      // 🛣 ruta
       let ahora = Date.now()
 
-      if(!window.ultimaRutaPadres || (ahora - window.ultimaRutaPadres > 7000)){
+      if(
+        !window.ultimaRutaPadres ||
+        (ahora - window.ultimaRutaPadres > 7000)
+      ){
+
         window.ultimaRutaPadres = ahora
 
         let coords = [
@@ -394,20 +598,27 @@ function iniciarPadres(){
           `${alumnoPadre.lon},${alumnoPadre.lat}`
         ]
 
-        fetch(`https://router.project-osrm.org/route/v1/driving/${coords.join(";")}?overview=full&geometries=geojson`)
+        fetch(
+          `https://router.project-osrm.org/route/v1/driving/${coords.join(";")}?overview=full&geometries=geojson`
+        )
         .then(res=>res.json())
         .then(data=>{
 
           if(!data.routes) return
 
-          let rutaCoords = data.routes[0].geometry.coordinates
-          let latlngs = rutaCoords.map(c => [c[1], c[0]])
+          let rutaCoords =
+            data.routes[0].geometry.coordinates
+
+          let latlngs =
+            rutaCoords.map(c => [c[1], c[0]])
 
           if(rutaPadres){
             mapPadres.removeLayer(rutaPadres)
           }
 
-          rutaPadres = L.polyline(latlngs, {weight:5}).addTo(mapPadres)
+          rutaPadres = L.polyline(latlngs, {
+            weight:5
+          }).addTo(mapPadres)
         })
       }
     }
@@ -416,16 +627,78 @@ function iniciarPadres(){
 
   })
 
-  // 🔔 AVISO PADRES
-  db.ref("avisos/" + alumnoPadre.dni).on("value",(snap)=>{
+  // 🔔 AVISO
+  db.ref("avisos/" + alumnoPadre.dni)
+  .on("value",(snap)=>{
 
     let aviso = snap.val()
     if(!aviso) return
 
-    if(window.ultimoAviso === aviso.tiempo) return
+    if(window.ultimoAviso === aviso.tiempo){
+      return
+    }
 
     window.ultimoAviso = aviso.tiempo
 
     alert(aviso.mensaje)
   })
+}
+
+// 📍 ABRIR MAPA
+function abrirMapaSeleccion(){
+  mostrar("pantallaMapaSeleccion")
+}
+
+// 📍 MAPA SELECCIÓN
+function iniciarMapaSeleccion(){
+
+  if(!mapSeleccion){
+
+    mapSeleccion = L.map('mapaSeleccion')
+    .setView([-23.13, -64.32], 15)
+
+    L.tileLayer(
+      'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+    ).addTo(mapSeleccion)
+
+    mapSeleccion.on("click",(e)=>{
+
+      latSeleccion = e.latlng.lat
+      lonSeleccion = e.latlng.lng
+
+      if(markerSeleccion){
+
+        markerSeleccion.setLatLng(e.latlng)
+
+      }else{
+
+        markerSeleccion = L.marker(e.latlng)
+        .addTo(mapSeleccion)
+      }
+
+      let texto = document.getElementById("ubicacionElegida")
+
+      if(texto){
+        texto.innerHTML =
+          `📍 Ubicación seleccionada`
+      }
+    })
+  }
+
+  setTimeout(()=>{
+    mapSeleccion.invalidateSize()
+  },300)
+}
+
+// ✅ GUARDAR UBICACIÓN
+function guardarUbicacion(){
+
+  if(latSeleccion === null){
+    alert("Tocá el mapa primero")
+    return
+  }
+
+  alert("Ubicación guardada 📍")
+
+  mostrar("pantallaAlumnos")
 }

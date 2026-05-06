@@ -627,21 +627,52 @@ function iniciarPadres(){
 
   })
 
-  // 🔔 AVISO
-  db.ref("avisos/" + alumnoPadre.dni)
-  .on("value",(snap)=>{
+  // 🔔 AVISO SONORO + VIBRACIÓN
+db.ref("avisos/" + alumnoPadre.dni)
+.on("value",(snap)=>{
 
-    let aviso = snap.val()
-    if(!aviso) return
+  let aviso = snap.val()
 
-    if(window.ultimoAviso === aviso.tiempo){
-      return
-    }
+  if(!aviso) return
 
-    window.ultimoAviso = aviso.tiempo
+  // evita repetir aviso
+  if(window.ultimoAviso === aviso.tiempo){
+    return
+  }
 
-    alert(aviso.mensaje)
-  })
+  window.ultimoAviso = aviso.tiempo
+
+  // 🔊 SONIDO
+  try{
+
+    let audio = new Audio(
+      "https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg"
+    )
+
+    audio.volume = 1
+
+    audio.play()
+
+  }catch(e){
+
+    console.log("Error sonido:", e)
+  }
+
+  // 📳 vibración
+  if(navigator.vibrate){
+
+    navigator.vibrate([
+      300,
+      200,
+      300,
+      200,
+      500
+    ])
+  }
+
+  // 🔔 mensaje
+  alert("🚐 El transporte está llegando")
+})
 }
 
 // 📍 ABRIR MAPA

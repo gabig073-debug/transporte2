@@ -24,13 +24,14 @@ let circleChofer = null
 let capasAlumnos = []
 let alumnosDibujados = false
 
-// 🔥 GPS PRO
+// 🚐 RUTA INTELIGENTE
 let indiceRuta = 0
 let rutaLinea = null
 let ultimaRecalculo = 0
+let ultimaPosicionRuta = null
 
-// 🔔 CONTROL AVISOS
-let avisados = {} // evita repetir aviso
+// 🔔 AVISOS
+let avisados = {}
 
 // 🚐 ICONO
 const iconoColectivo = L.icon({
@@ -39,11 +40,61 @@ const iconoColectivo = L.icon({
   iconAnchor: [28, 28]
 })
 
+// 🔄 PANTALLAS
+function mostrar(p){
+
+  [
+    "pantallaModo",
+    "pantallaAlumnos",
+    "pantallaRuta",
+    "pantallaGPS",
+    "pantallaPadres",
+    "pantallaMapaSeleccion",
+    "pantallaLoginPadres"
+  ].forEach(id=>{
+    let el = document.getElementById(id)
+    if(el) el.style.display="none"
+  })
+
+  let pantalla = document.getElementById(p)
+  if(pantalla) pantalla.style.display="block"
+
+  setTimeout(()=>{
+    if(p==="pantallaGPS") iniciarGPS()
+    if(p==="pantallaRuta") mostrarRuta()
+  },200)
+}
+
+// 🚐 MODO
+function modoChofer(){
+  mostrar("pantallaAlumnos")
+}
+
+// 🔙
+function volverModo(){
+  location.reload()
+}
+
 // 🔥 CARGAR ALUMNOS
 db.ref("alumnos").on("value", (snap)=>{
   alumnos = snap.val() || []
   alumnosDibujados = false
 })
+
+// 📋 LISTA RUTA
+function mostrarRuta(){
+
+  let lista = document.getElementById("listaRuta")
+  if(!lista) return
+
+  lista.innerHTML=""
+
+  alumnos.forEach((a,i)=>{
+    let li = document.createElement("li")
+    li.innerHTML = `${i+1}. ${a.nombre}`
+    lista.appendChild(li)
+  })
+}
 
 // 🔴 DIBUJAR ALUMNOS
 function dibujarAlumnosEnMapa(){
@@ -106,12 +157,14 @@ function iniciarGPS(){
       token: TOKEN
     })
 
+    // 🚐 marcador
     if(!markerChofer){
       markerChofer = L.marker([lat, lon], {icon: iconoColectivo}).addTo(mapChofer)
     }else{
       markerChofer.setLatLng([lat, lon])
     }
 
+    // 📍 precisión
     if(!circleChofer){
       circleChofer = L.circle([lat, lon], {radius: accuracy}).addTo(mapChofer)
     }else{
@@ -126,13 +179,21 @@ function iniciarGPS(){
     // 🔥 GPS INTELIGENTE
     if(window.rutaActiva){
 
+      // evitar recalcular sin moverse
+      if(ultimaPosicionRuta){
+        let mov = distanciaMetros(ultimaUbicacion, ultimaPosicionRuta)
+        if(mov < 10) return
+      }
+
+      ultimaPosicionRuta = {...ultimaUbicacion}
+
       let destino = alumnos[indiceRuta]
 
       if(destino){
 
         let dist = distanciaMetros(ultimaUbicacion, destino)
 
-        // 🔔 AVISO A PADRES (500m)
+        // 🔔 aviso padres
         if(dist < 500 && !avisados[destino.dni]){
           avisados[destino.dni] = true
 
@@ -142,7 +203,7 @@ function iniciarGPS(){
           })
         }
 
-        // 🚐 LLEGÓ AL PUNTO
+        // 🚐 llegó
         if(dist < 40){
           indiceRuta++
 
@@ -153,7 +214,7 @@ function iniciarGPS(){
           return
         }
 
-        // 🔄 RECALCULAR RUTA (cada 5s)
+        // 🔄 recalcular ruta
         let ahora = Date.now()
         if(ahora - ultimaRecalculo > 5000){
           ultimaRecalculo = ahora
@@ -163,7 +224,7 @@ function iniciarGPS(){
     }
 
   },
-  (err)=>console.log(err),
+  (err)=>console.log("GPS error:", err),
   {
     enableHighAccuracy:true,
     timeout:15000,
@@ -186,7 +247,7 @@ function distanciaMetros(a, b){
   return d
 }
 
-// 🚐 COMENZAR RUTA
+// 🚐 INICIAR RUTA
 function comenzarRuta(){
 
   if(alumnos.length === 0){
@@ -195,13 +256,13 @@ function comenzarRuta(){
   }
 
   indiceRuta = 0
-  avisados = {} // reset avisos
+  avisados = {}
   window.rutaActiva = true
 
   calcularRutaActual()
 }
 
-// 🧠 CALCULAR RUTA DINÁMICA
+// 🧠 CALCULAR RUTA
 async function calcularRutaActual(){
 
   if(!ultimaUbicacion) return
@@ -224,17 +285,22 @@ async function calcularRutaActual(){
     `${destino.lon},${destino.lat}`
   ]
 
-  let url = `https://router.project-osrm.org/route/v1/driving/${coords.join(";")}?overview=full&geometries=geojson`
+  try{
+    let url = `https://router.project-osrm.org/route/v1/driving/${coords.join(";")}?overview=full&geometries=geojson`
 
-  let res = await fetch(url)
-  let data = await res.json()
+    let res = await fetch(url)
+    let data = await res.json()
 
-  let rutaCoords = data.routes[0].geometry.coordinates
-  let latlngs = rutaCoords.map(c => [c[1], c[0]])
+    let rutaCoords = data.routes[0].geometry.coordinates
+    let latlngs = rutaCoords.map(c => [c[1], c[0]])
 
-  if(rutaLinea){
-    mapChofer.removeLayer(rutaLinea)
+    if(rutaLinea){
+      mapChofer.removeLayer(rutaLinea)
+    }
+
+    rutaLinea = L.polyline(latlngs, {weight:5}).addTo(mapChofer)
+
+  }catch(e){
+    console.log("Error ruta:", e)
   }
-
-  rutaLinea = L.polyline(latlngs, {weight:5}).addTo(mapChofer)
 }

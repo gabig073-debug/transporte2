@@ -14,12 +14,20 @@ const db = firebase.database();
 
 // 📍 VARIABLES
 let alumnos = []
+let alumnoPadre = null
+
 let watchID = null
 let ultimaUbicacion = null
 
 let mapChofer = null
 let markerChofer = null
 let circleChofer = null
+
+let mapPadres = null
+let markerPadres = null
+let circlePadres = null
+let markerAlumnoPadre = null
+let rutaPadres = null
 
 let capasAlumnos = []
 let alumnosDibujados = false
@@ -62,12 +70,32 @@ function mostrar(p){
   setTimeout(()=>{
     if(p==="pantallaGPS") iniciarGPS()
     if(p==="pantallaRuta") mostrarRuta()
+    if(p==="pantallaPadres") iniciarPadres()
   },200)
 }
 
 // 🚐 MODO
 function modoChofer(){
   mostrar("pantallaAlumnos")
+}
+
+// 🔐 LOGIN PADRES
+function ingresarPadre(){
+  let dni = document.getElementById("dniPadre").value
+
+  if(!dni){
+    alert("Ingresá DNI")
+    return
+  }
+
+  alumnoPadre = alumnos.find(a => a.dni == dni)
+
+  if(!alumnoPadre){
+    alert("DNI no encontrado")
+    return
+  }
+
+  mostrar("pantallaPadres")
 }
 
 // 🔙
@@ -83,7 +111,6 @@ db.ref("alumnos").on("value", (snap)=>{
 
 // 📋 LISTA RUTA
 function mostrarRuta(){
-
   let lista = document.getElementById("listaRuta")
   if(!lista) return
 
@@ -157,14 +184,12 @@ function iniciarGPS(){
       token: TOKEN
     })
 
-    // 🚐 marcador
     if(!markerChofer){
       markerChofer = L.marker([lat, lon], {icon: iconoColectivo}).addTo(mapChofer)
     }else{
       markerChofer.setLatLng([lat, lon])
     }
 
-    // 📍 precisión
     if(!circleChofer){
       circleChofer = L.circle([lat, lon], {radius: accuracy}).addTo(mapChofer)
     }else{
@@ -176,10 +201,8 @@ function iniciarGPS(){
       mapChofer.setView([lat, lon], 17)
     }
 
-    // 🔥 GPS INTELIGENTE
     if(window.rutaActiva){
 
-      // evitar recalcular sin moverse
       if(ultimaPosicionRuta){
         let mov = distanciaMetros(ultimaUbicacion, ultimaPosicionRuta)
         if(mov < 10) return
@@ -214,7 +237,6 @@ function iniciarGPS(){
           return
         }
 
-        // 🔄 recalcular ruta
         let ahora = Date.now()
         if(ahora - ultimaRecalculo > 5000){
           ultimaRecalculo = ahora
@@ -303,4 +325,107 @@ async function calcularRutaActual(){
   }catch(e){
     console.log("Error ruta:", e)
   }
+}
+
+// 👨‍👩‍👧 MODO PADRES COMPLETO
+function iniciarPadres(){
+
+  if(!alumnoPadre){
+    mostrar("pantallaLoginPadres")
+    return
+  }
+
+  if(mapPadres){
+    mapPadres.remove()
+    mapPadres = null
+    markerPadres = null
+    circlePadres = null
+    markerAlumnoPadre = null
+    rutaPadres = null
+  }
+
+  mapPadres = L.map('mapaPadres').setView([0,0], 16)
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png')
+  .addTo(mapPadres)
+
+  setTimeout(()=>mapPadres.invalidateSize(),300)
+
+  db.ref("ubicacion").on("value",(snap)=>{
+
+    let data = snap.val()
+    if(!data) return
+
+    let lat = data.lat
+    let lon = data.lon
+    let accuracy = data.accuracy || 20
+
+    if(!markerPadres){
+      markerPadres = L.marker([lat, lon], {icon: iconoColectivo}).addTo(mapPadres)
+    }else{
+      markerPadres.setLatLng([lat, lon])
+    }
+
+    if(!circlePadres){
+      circlePadres = L.circle([lat, lon], {radius: accuracy}).addTo(mapPadres)
+    }else{
+      circlePadres.setLatLng([lat, lon])
+      circlePadres.setRadius(accuracy)
+    }
+
+    if(alumnoPadre.lat && alumnoPadre.lon){
+
+      if(!markerAlumnoPadre){
+        markerAlumnoPadre = L.circle([alumnoPadre.lat, alumnoPadre.lon], {
+          radius: 30,
+          color: "red",
+          fillColor: "red",
+          fillOpacity: 0.6
+        }).addTo(mapPadres)
+      }
+
+      let ahora = Date.now()
+
+      if(!window.ultimaRutaPadres || (ahora - window.ultimaRutaPadres > 7000)){
+        window.ultimaRutaPadres = ahora
+
+        let coords = [
+          `${lon},${lat}`,
+          `${alumnoPadre.lon},${alumnoPadre.lat}`
+        ]
+
+        fetch(`https://router.project-osrm.org/route/v1/driving/${coords.join(";")}?overview=full&geometries=geojson`)
+        .then(res=>res.json())
+        .then(data=>{
+
+          if(!data.routes) return
+
+          let rutaCoords = data.routes[0].geometry.coordinates
+          let latlngs = rutaCoords.map(c => [c[1], c[0]])
+
+          if(rutaPadres){
+            mapPadres.removeLayer(rutaPadres)
+          }
+
+          rutaPadres = L.polyline(latlngs, {weight:5}).addTo(mapPadres)
+        })
+      }
+    }
+
+    mapPadres.setView([lat, lon], 16)
+
+  })
+
+  // 🔔 AVISO PADRES
+  db.ref("avisos/" + alumnoPadre.dni).on("value",(snap)=>{
+
+    let aviso = snap.val()
+    if(!aviso) return
+
+    if(window.ultimoAviso === aviso.tiempo) return
+
+    window.ultimoAviso = aviso.tiempo
+
+    alert(aviso.mensaje)
+  })
 }

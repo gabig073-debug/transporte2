@@ -702,3 +702,19 @@ function guardarUbicacion(){
 
   mostrar("pantallaAlumnos")
 }
+
+// 🔙 VOLVER LOGIN PADRES
+function volverLoginPadres(){
+
+  if(mapPadres){
+    mapPadres.remove()
+    mapPadres = null
+  }
+
+  markerPadres = null
+  circlePadres = null
+  markerAlumnoPadre = null
+  rutaPadres = null
+
+  mostrar("pantallaLoginPadres")
+}
